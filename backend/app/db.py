@@ -78,6 +78,15 @@ def connect(database_path: Path) -> sqlite3.Connection:
         # the claim can use BEGIN IMMEDIATE and nothing else holds a write lock.
         isolation_level=None,
         timeout=5.0,
+        # FastAPI runs a synchronous generator dependency in its worker thread pool,
+        # and does not guarantee the generator's setup and teardown run on the same
+        # thread. sqlite3 refuses cross-thread use by default, so closing the
+        # connection raised ProgrammingError as soon as two requests overlapped.
+        #
+        # Safe to relax here because each request opens its own connection and hands
+        # it to exactly one request handler: the connection moves between threads, but
+        # is never used from two at once.
+        check_same_thread=False,
     )
     connection.row_factory = sqlite3.Row
 
