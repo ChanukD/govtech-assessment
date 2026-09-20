@@ -107,9 +107,7 @@ variable "secret_environment_variables" {
   default     = {}
 }
 
-# ---------------------------------------------------------------------------------
 # Load-balanced shape — optional
-# ---------------------------------------------------------------------------------
 
 variable "container_port" {
   type        = number
@@ -134,9 +132,18 @@ variable "health_check_grace_period_seconds" {
   default     = null
 }
 
-# ---------------------------------------------------------------------------------
 # Behaviour
-# ---------------------------------------------------------------------------------
+
+variable "cpu_architecture" {
+  type        = string
+  description = "Fargate CPU architecture. ARM64 is cheaper per task but requires images built for it."
+  default     = "X86_64"
+
+  validation {
+    condition     = contains(["X86_64", "ARM64"], var.cpu_architecture)
+    error_message = "cpu_architecture must be X86_64 or ARM64."
+  }
+}
 
 variable "enable_execute_command" {
   type        = bool

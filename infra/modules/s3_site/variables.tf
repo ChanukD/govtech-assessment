@@ -8,6 +8,18 @@ variable "alb_dns_name" {
   description = "DNS name of the load balancer, used as the second CloudFront origin."
 }
 
+variable "alb_origin_port" {
+  type        = number
+  description = "Port CloudFront connects to on the load balancer. Must match the alb module's listener_port."
+  default     = 80
+}
+
+variable "force_destroy" {
+  type        = bool
+  description = "Whether `terraform destroy` may delete the site bucket while it still holds objects."
+  default     = false
+}
+
 variable "api_path_pattern" {
   type        = string
   description = "Path pattern routed to the ALB origin instead of the S3 origin. Everything else is served from the bucket."
@@ -37,9 +49,7 @@ variable "spa_error_response_path" {
   default     = "/index.html"
 }
 
-# ---------------------------------------------------------------------------------
 # WAF
-# ---------------------------------------------------------------------------------
 
 variable "waf_managed_rule_groups" {
   type        = list(string)

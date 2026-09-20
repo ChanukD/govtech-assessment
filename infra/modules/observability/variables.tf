@@ -28,9 +28,7 @@ variable "log_retention_days" {
   }
 }
 
-# ---------------------------------------------------------------------------------
 # Alarm targets
-# ---------------------------------------------------------------------------------
 
 variable "ecs_cluster_name" {
   type        = string
@@ -72,9 +70,7 @@ variable "db_instance_identifier" {
   description = "Database instance identifier, a dimension on the database alarms."
 }
 
-# ---------------------------------------------------------------------------------
 # Thresholds
-# ---------------------------------------------------------------------------------
 
 variable "dlq_depth_threshold" {
   type        = number

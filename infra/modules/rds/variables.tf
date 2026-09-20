@@ -116,6 +116,23 @@ variable "maintenance_window" {
   default     = "Sun:18:30-Sun:19:30" # Mon 02:30-03:30 in ap-southeast-1
 }
 
+variable "multi_az" {
+  type        = bool
+  description = "Whether to run a standby in a second AZ. False in this environment as a documented simplification; production would set it true."
+  default     = false
+}
+
+variable "secret_recovery_window_days" {
+  type        = number
+  description = "Days Secrets Manager retains a deleted secret before purging it. Zero allows immediate reuse of the name, which matters when tearing a dev environment down and back up."
+  default     = 7
+
+  validation {
+    condition     = var.secret_recovery_window_days == 0 || (var.secret_recovery_window_days >= 7 && var.secret_recovery_window_days <= 30)
+    error_message = "secret_recovery_window_days must be 0, or between 7 and 30."
+  }
+}
+
 variable "deletion_protection" {
   type        = bool
   description = "Whether the instance refuses deletion."
