@@ -1,0 +1,764 @@
+/*
+ * One stylesheet, no framework. The surface is small enough that a utility library
+ * would be more bytes and more indirection than it saves.
+ *
+ * Layout is fluid rather than fixed: spacing and type scale with the viewport via
+ * clamp(), and three breakpoints handle the structural changes - sidebar narrows,
+ * then stacks, then the output table restacks into cards.
+ */
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-sunken: #eef0f4;
+  --surface-accent: #eef3ff;
+  --border: #dfe3e8;
+  --border-strong: #c7ccd4;
+  --text: #1a1d21;
+  --text-muted: #626a75;
+
+  --accent: #2563eb;
+  --accent-text: #ffffff;
+  --accent-hover: #1d4ed8;
+
+  --queued: #8a5a00;
+  --queued-bg: #fdf0d5;
+  --running: #1d4ed8;
+  --running-bg: #dbeafe;
+  --succeeded: #14682f;
+  --succeeded-bg: #d8f5e2;
+  --failed: #b3261e;
+  --failed-bg: #fde8e6;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  /* Fluid spacing: tighter on a phone, roomier on a desktop. */
+  --gap: clamp(0.75rem, 0.4rem + 1.2vw, 1.25rem);
+  --pad: clamp(1rem, 0.6rem + 1.4vw, 1.5rem);
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 4%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --surface: #171a1f;
+    --surface-sunken: #1f232a;
+    --surface-accent: #182031;
+    --border: #2a2f37;
+    --border-strong: #3a4049;
+    --text: #e8eaed;
+    --text-muted: #a0a8b4;
+
+    --accent: #4b8cf7;
+    --accent-hover: #6ea3f9;
+
+    --queued: #f0c274;
+    --queued-bg: #3a2e16;
+    --running: #9cc4fd;
+    --running-bg: #17263f;
+    --succeeded: #86efac;
+    --succeeded-bg: #14311f;
+    --failed: #f6a9a4;
+    --failed-bg: #3b1a1a;
+
+    --shadow: none;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: clamp(14px, 13.4px + 0.2vw, 15px);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: clamp(1.25rem, 1.05rem + 0.9vw, 1.6rem);
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1rem;
+}
+
+p {
+  margin: 0;
+}
+
+code {
+  font-family: var(--mono);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.app {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: clamp(1rem, 0.5rem + 2vw, 2.5rem) clamp(0.75rem, 0.4rem + 1.5vw, 1.5rem)
+    4rem;
+}
+
+.app__header {
+  margin-bottom: var(--gap);
+}
+
+.app__main {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: var(--gap);
+  align-items: start;
+}
+
+.app__sidebar,
+.app__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+/* Below this the two columns stop earning their width. */
+@media (max-width: 900px) {
+  .app__main {
+    grid-template-columns: 1fr;
+  }
+
+  /* On one column the history is reference material, so it follows the output
+     rather than pushing it below the fold. */
+  .app__sidebar {
+    order: 2;
+  }
+}
+
+/* ---------------------------------------------------------------- panels */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--pad);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: var(--shadow);
+}
+
+.panel--accent {
+  background: var(--surface-accent);
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.panel--empty {
+  align-items: center;
+  text-align: center;
+  padding: clamp(1.5rem, 1rem + 3vw, 2.5rem) var(--pad);
+}
+
+.panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.panel__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.panel__subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.panel__count {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.button {
+  font: inherit;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  padding: 0.6rem 1.1rem;
+  cursor: pointer;
+  /* Comfortable touch target on a phone. */
+  min-height: 44px;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.button--primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  align-self: flex-start;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.button--ghost {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.button--ghost:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+@media (max-width: 480px) {
+  .button--primary {
+    align-self: stretch;
+    text-align: center;
+  }
+}
+
+.hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- badges */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.badge__dot--pulse {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.badge--queued {
+  color: var(--queued);
+  background: var(--queued-bg);
+}
+.badge--running {
+  color: var(--running);
+  background: var(--running-bg);
+}
+.badge--succeeded {
+  color: var(--succeeded);
+  background: var(--succeeded-bg);
+}
+.badge--failed {
+  color: var(--failed);
+  background: var(--failed-bg);
+}
+
+/* ---------------------------------------------------------------- progress */
+
+.progress {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.progress__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  border: 1px solid transparent;
+  min-width: 0;
+}
+
+.progress__marker {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--border);
+  color: var(--text-muted);
+}
+
+.progress__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.progress__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.progress__hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.progress__step--done .progress__marker {
+  background: var(--succeeded);
+  color: var(--surface);
+}
+
+.progress__step--active {
+  background: var(--running-bg);
+  border-color: color-mix(in srgb, var(--running) 35%, transparent);
+}
+
+.progress__step--active .progress__marker {
+  background: var(--running);
+  color: var(--surface);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.progress__step--failed {
+  background: var(--failed-bg);
+  border-color: color-mix(in srgb, var(--failed) 35%, transparent);
+}
+
+.progress__step--failed .progress__marker {
+  background: var(--failed);
+  color: var(--surface);
+}
+
+.progress__step--pending {
+  opacity: 0.6;
+}
+
+/* Three columns of text get cramped before the layout itself does. */
+@media (max-width: 620px) {
+  .progress {
+    grid-template-columns: 1fr;
+  }
+
+  .progress__hint {
+    display: none;
+  }
+
+  .progress__step {
+    padding: 0.45rem 0.6rem;
+  }
+}
+
+/* ---------------------------------------------------------------- run list */
+
+.run-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: min(60vh, 460px);
+  overflow-y: auto;
+}
+
+.run-list__item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.run-list__item:hover {
+  background: var(--surface-sunken);
+}
+
+.run-list__item--selected {
+  border-color: var(--accent);
+  background: var(--surface-accent);
+}
+
+.run-list__item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.run-list__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.run-list__id {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.run-list__meta {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.run-id {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+/* ---------------------------------------------------------------- details */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.detail-grid dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.detail-grid dd {
+  margin: 0.15rem 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tabular numerals stop a ticking timer from shifting the layout each tick. */
+.live {
+  font-variant-numeric: tabular-nums;
+  color: var(--running);
+  font-weight: 600;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.stat dt {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.stat dd {
+  margin: 0.1rem 0 0;
+  font-size: clamp(1.25rem, 1rem + 1vw, 1.65rem);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.stat--muted dd {
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- table */
+
+.table-wrap {
+  overflow-x: auto;
+  transition: opacity 120ms ease;
+}
+
+/* Paging keeps the old rows visible but dimmed, rather than flashing empty. */
+.table-wrap[data-loading="true"] {
+  opacity: 0.5;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table th,
+.table td {
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr:hover {
+  background: var(--surface-sunken);
+}
+
+.cell-id {
+  display: block;
+  font-weight: 600;
+}
+
+.cell-sub {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/*
+ * Below this width the table restacks into one card per row. The header is hidden and
+ * each cell shows its own label from data-label, so the same markup stays readable
+ * without a horizontal scrollbar.
+ */
+@media (max-width: 680px) {
+  .table--stacking thead {
+    display: none;
+  }
+
+  .table--stacking,
+  .table--stacking tbody,
+  .table--stacking tr,
+  .table--stacking td {
+    display: block;
+    width: 100%;
+  }
+
+  .table--stacking tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.5rem;
+    background: var(--surface);
+  }
+
+  .table--stacking td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    border: none;
+    white-space: normal;
+    text-align: right;
+  }
+
+  .table--stacking td::before {
+    content: attr(data-label);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    text-align: left;
+    flex-shrink: 0;
+  }
+
+  /* The identifier cell reads as the card's heading rather than a labelled field. */
+  .table--stacking td[data-label="Object"] {
+    display: block;
+    text-align: left;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.3rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table--stacking td[data-label="Object"]::before {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- pager */
+
+.pager {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pager__status {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- banner */
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid;
+  flex-wrap: wrap;
+}
+
+.banner--error {
+  color: var(--failed);
+  background: var(--failed-bg);
+  border-color: color-mix(in srgb, var(--failed) 40%, transparent);
+}
+
+.banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.banner__body p {
+  word-break: break-word;
+}
+
+/* ---------------------------------------------------------------- skeleton */
+
+.skeleton-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.skeleton {
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-sunken) 25%,
+    var(--border) 37%,
+    var(--surface-sunken) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge__dot--pulse,
+  .progress__step--active .progress__marker,
+  .skeleton {
+    animation: none;
+  }
+}
