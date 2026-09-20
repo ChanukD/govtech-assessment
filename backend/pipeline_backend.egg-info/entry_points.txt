@@ -1,0 +1,2 @@
+[console_scripts]
+pipeline-worker = app.worker:main
