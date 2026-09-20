@@ -1,10 +1,7 @@
 """SQLite connection handling and schema.
 
-WAL mode and a busy timeout are not optional here: the API and the worker are
-separate processes writing to the same file. WAL lets readers proceed during a
-write, and the busy timeout makes a concurrent writer wait rather than fail
-immediately. This is the weakest part of the local setup and the first thing that
-changes in a hosted environment - see the README.
+WAL mode and a busy timeout matter here: the API and worker are separate processes
+writing to the same file.
 """
 
 from __future__ import annotations
@@ -33,7 +30,7 @@ CREATE TABLE IF NOT EXISTS runs (
     objects_deleted   INTEGER
 );
 
--- Supports the claim query, which is the hottest statement in the system.
+-- Supports the claim query.
 CREATE INDEX IF NOT EXISTS idx_runs_claimable ON runs (status, visible_at);
 CREATE INDEX IF NOT EXISTS idx_runs_created ON runs (created_at DESC);
 
@@ -53,9 +50,8 @@ CREATE TABLE IF NOT EXISTS records (
     last_event_id  INTEGER NOT NULL,
     last_event_at  TEXT NOT NULL,
 
-    -- Keyed by run so each run's output stays viewable, and by object so a
-    -- redelivered message upserts rather than duplicating. Both halves matter:
-    -- the first for the UI, the second for at-least-once delivery.
+    -- By run so each run's output stays viewable, by object so a redelivered
+    -- message upserts rather than duplicating.
     PRIMARY KEY (run_id, object_id)
 );
 """
@@ -74,18 +70,12 @@ def connect(database_path: Path) -> sqlite3.Connection:
 
     connection = sqlite3.connect(
         database_path,
-        # Autocommit. Transactions are opened explicitly where they are needed, so
-        # the claim can use BEGIN IMMEDIATE and nothing else holds a write lock.
+        # Autocommit; transactions are opened explicitly where needed.
         isolation_level=None,
         timeout=5.0,
-        # FastAPI runs a synchronous generator dependency in its worker thread pool,
-        # and does not guarantee the generator's setup and teardown run on the same
-        # thread. sqlite3 refuses cross-thread use by default, so closing the
-        # connection raised ProgrammingError as soon as two requests overlapped.
-        #
-        # Safe to relax here because each request opens its own connection and hands
-        # it to exactly one request handler: the connection moves between threads, but
-        # is never used from two at once.
+        # FastAPI may run a sync dependency's setup and teardown on different
+        # threadpool threads. Safe to relax: each request gets its own connection and
+        # never shares it concurrently.
         check_same_thread=False,
     )
     connection.row_factory = sqlite3.Row
@@ -113,11 +103,10 @@ def closing_connection(database_path: Path) -> Iterator[sqlite3.Connection]:
 
 @contextmanager
 def write_transaction(connection: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
-    """Acquire the write lock up front.
+    """Take the write lock up front.
 
-    BEGIN IMMEDIATE rather than the default deferred begin: it takes the write lock
-    at the start instead of upgrading mid-transaction, which is what would otherwise
-    produce 'database is locked' between the API and the worker.
+    BEGIN IMMEDIATE avoids the mid-transaction upgrade that produces
+    'database is locked' between the API and the worker.
     """
     connection.execute("BEGIN IMMEDIATE")
     try:

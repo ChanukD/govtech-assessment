@@ -1,16 +1,7 @@
 """The queue, expressed in SQL.
 
-This is the local equivalent of SQS, and deliberately uses the same semantics rather
-than a simpler local shortcut:
-
-    claim     -> ReceiveMessage + visibility timeout
-    complete  -> DeleteMessage
-    fail      -> message returns to the queue; after max_attempts it is terminal,
-                 which is this design's dead-letter queue
-
-Because the semantics match, moving to real SQS replaces this module and changes
-nothing else. What it does *not* reproduce is SQS's durability or its decoupling of
-queue storage from application storage - here they are the same file.
+Local equivalent of SQS: claim is ReceiveMessage plus a visibility timeout, complete
+is DeleteMessage, and a run that exhausts max_attempts is the dead-letter queue.
 """
 
 from __future__ import annotations
@@ -26,12 +17,9 @@ def claim_next_run(
 ) -> sqlite3.Row | None:
     """Atomically claim one runnable run, or return None.
 
-    A run is claimable when it is QUEUED, or when it is RUNNING but its visibility
-    window has expired - which is how a run whose worker died gets picked up again.
-
-    The UPDATE and the selection happen in one statement inside an immediate
-    transaction, so two workers cannot claim the same run: the second finds no row
-    matching the status predicate.
+    A run is claimable when it is QUEUED, or RUNNING with an expired visibility
+    window - which is how a run whose worker died gets picked up again. Selection and
+    update are one statement, so a second worker finds no row rather than a duplicate.
     """
     now = utc_now()
     visible_until = now + timedelta(seconds=visibility_timeout_seconds)
@@ -91,8 +79,8 @@ def fail_run(
 ) -> bool:
     """Record a failure. Returns True if the run is now terminal.
 
-    Below max_attempts the run goes back to QUEUED and becomes immediately visible,
-    which is the retry. At max_attempts it becomes FAILED and is never claimed again.
+    Below max_attempts the run returns to QUEUED and is retried; at max_attempts it
+    becomes FAILED and is never claimed again.
     """
     now = utc_now()
 

@@ -1,8 +1,4 @@
-"""HTTP routes.
-
-The only rule that matters here: no endpoint does pipeline work. Creating a run is
-one INSERT and a 202. Everything expensive happens in the worker.
-"""
+"""HTTP routes. No endpoint does pipeline work - that is the worker's job."""
 
 from __future__ import annotations
 
@@ -28,13 +24,10 @@ router = APIRouter()
 
 
 def get_app_settings(request: Request) -> Settings:
-    """Settings belonging to this app instance.
+    """Settings for this app instance.
 
-    Read from app.state rather than by calling get_settings(), which is a
-    process-wide cache. Going through the app means every layer - routes, and the
-    startup hook that creates the schema - sees the same object, so a test or a
-    second app instance can supply its own without one of them silently falling back
-    to the real configuration.
+    Read from app.state, not the process-wide get_settings() cache, so routes and
+    startup always agree on which configuration they are using.
     """
     return request.app.state.settings
 
@@ -64,11 +57,7 @@ def trigger_run(
     connection: sqlite3.Connection = Depends(get_connection),
     settings: Settings = Depends(get_app_settings),
 ) -> RunSummary:
-    """Queue a pipeline run and return immediately.
-
-    202 rather than 201: the run has been accepted, not completed. Response time is
-    one insert regardless of how large the input is.
-    """
+    """Queue a run and return immediately. 202: accepted, not completed."""
     row = create_run(
         connection,
         source_key=settings.source_key,
@@ -117,9 +106,8 @@ def get_run_records(
 ) -> RecordListResponse:
     """A run's transformed output.
 
-    Returns 200 with an empty list while the run is still in flight rather than 404 -
-    the run exists, its output does not yet. The status field tells the caller which
-    of those it is looking at.
+    200 with an empty list while in flight, not 404: the run exists, its output does
+    not yet. The status field distinguishes the two.
     """
     run = get_run(connection, run_id)
     if run is None:

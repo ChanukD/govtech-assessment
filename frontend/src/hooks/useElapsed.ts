@@ -1,9 +1,6 @@
 /**
- * A ticking elapsed time, for a run that is still in flight.
- *
- * Without this the duration sits at "—" for the whole run and then jumps to a final
- * number, which reads as nothing happening. The ticker stops as soon as `active`
- * goes false, so a finished run costs no timers.
+ * A ticking elapsed time for an in-flight run. Stops when `active` goes false, so a
+ * finished run costs no timers.
  */
 
 import { useEffect, useState } from "react";
@@ -16,8 +13,7 @@ export function useElapsed(since: string | null, active: boolean): number | null
   useEffect(() => {
     if (!active) return;
 
-    // Re-read immediately so switching to an in-flight run does not show a stale
-    // value until the first tick lands.
+    // Re-read immediately so a freshly selected run is not stale until the first tick.
     setNow(Date.now());
 
     const timer = setInterval(() => {

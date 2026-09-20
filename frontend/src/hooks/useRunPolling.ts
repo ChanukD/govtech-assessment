@@ -1,15 +1,9 @@
 /**
- * Polls a single run until it reaches a terminal status.
+ * Polls a run until it reaches a terminal status, then stops.
  *
- * Polling is the deliberate choice here: it is trivial, needs no persistent
- * connection, and works through any proxy. What it costs is a request per interval
- * per viewer while a run is in flight, and a status latency bounded by that
- * interval. Server-sent events are the production answer; see the README.
- *
- * Two things this hook is careful about:
- *  - it stops the moment the run is SUCCEEDED or FAILED, rather than polling forever
- *  - every request is abortable, so unmounting or switching runs cannot land a stale
- *    response on top of newer state
+ * Polling costs a request per interval per viewer and bounds status latency by that
+ * interval; server-sent events are the production answer. Requests are abortable so a
+ * stale response cannot land on newer state.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,16 +28,14 @@ export function useRunPolling(
   const [run, setRun] = useState<Run | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
 
-  // Bumping this re-runs the effect, which is how a manual refresh is expressed
-  // without duplicating the fetch logic outside the effect.
+  // Bumping this re-runs the effect, so refresh reuses the same fetch logic.
   const [refreshToken, setRefreshToken] = useState(0);
 
   const refresh = useCallback(() => {
     setRefreshToken((token) => token + 1);
   }, []);
 
-  // Held in a ref so the polling loop can read the latest status without the effect
-  // depending on `run` and therefore restarting on every tick.
+  // A ref, so the loop reads the latest status without restarting on every tick.
   const statusRef = useRef<Run["status"] | null>(null);
   statusRef.current = run?.status ?? null;
 
@@ -54,8 +46,7 @@ export function useRunPolling(
       return;
     }
 
-    // A different run is being watched; drop the previous one immediately rather
-    // than showing another run's status under the new id.
+    // Drop the previous run rather than showing its status under the new id.
     setRun(null);
     setError(null);
     statusRef.current = null;
@@ -78,8 +69,7 @@ export function useRunPolling(
         if (cancelled || controller.signal.aborted) return;
         if (cause instanceof ApiError) {
           setError(cause);
-          // A 404 will not fix itself - the run does not exist. Anything else might
-          // be the backend restarting, so keep polling.
+          // A 404 will not fix itself; anything else might be a restart.
           if (cause.status === 404) return;
         } else {
           throw cause;

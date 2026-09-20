@@ -1,9 +1,6 @@
 /**
- * The run's position in the pipeline, as three stages rather than one badge.
- *
- * A status label alone does not tell a first-time viewer what is happening or what
- * happens next. Showing the stages makes the asynchronous handoff visible: the
- * request is accepted at stage one, and the work happens later at stage two.
+ * The run's position in the pipeline as three stages rather than one badge, which
+ * makes the asynchronous handoff visible: accepted at stage one, worked at stage two.
  */
 
 import type { RunStatus } from "@/api/types";
@@ -21,10 +18,7 @@ const STAGES: readonly Stage[] = [
   { label: "Complete", hint: "Output written to the database" },
 ];
 
-/**
- * A failed run marks the stage it died in rather than showing a third completed
- * step - it reached "Running" and stopped there.
- */
+/** A failed run marks the stage it died in, not a third completed step. */
 function stateFor(index: number, status: RunStatus): StageState {
   switch (status) {
     case "QUEUED":

@@ -22,9 +22,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Taken from the app, not from get_settings(). Calling the process-wide cache
-    # here would ignore whatever settings this particular app was built with and
-    # create the schema against the real configured database instead.
+    # From the app, not get_settings(): the cache would ignore whatever settings
+    # this instance was built with.
     settings: Settings = app.state.settings
 
     initialise(settings.database_path)
@@ -37,11 +36,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    """Build an app instance.
-
-    Settings are an argument so that a caller can supply their own - a test, or a
-    second instance in one process. Omitted, they come from the environment.
-    """
+    """Build an app instance. Settings default to the environment."""
     settings = settings or get_settings()
 
     app = FastAPI(
@@ -51,11 +46,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Set before startup runs, because lifespan reads it.
+    # Set before startup, which reads it.
     app.state.settings = settings
 
-    # Needed only in local development. In AWS the SPA and the API are served from
-    # one CloudFront distribution, so requests are same-origin and no CORS applies.
+    # Local development only: in AWS both are served from one CloudFront
+    # distribution, so requests are same-origin.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),

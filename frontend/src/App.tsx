@@ -1,8 +1,6 @@
 /**
- * The whole workflow on one screen: trigger a run, watch its status, read its output.
- *
- * App owns only which run is selected. Everything else - fetching, polling, paging -
- * lives in hooks, so this component reads as the sequence of steps in the brief.
+ * The whole workflow on one screen. App owns only which run is selected; fetching,
+ * polling and paging live in hooks.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -24,25 +22,22 @@ export function App() {
   const [triggerError, setTriggerError] = useState<ApiError | null>(null);
 
   const history = useRunHistory();
-  // Pulled out because it is a stable useCallback: effects can depend on it without
-  // re-running every time the history list re-renders.
+  // Stable useCallback: effects can depend on it without re-running on every render.
   const { reload: reloadHistory } = history;
   const { run, error: pollError, isPolling, refresh } = useRunPolling(selectedRunId);
 
-  // Output is only fetched once the run has finished - before that there is nothing
-  // to show, and the answer is already known to be empty.
+  // Output is only fetched once the run has finished.
   const isComplete = run !== null && isTerminal(run.status);
   const records = useRunRecords(selectedRunId, isComplete);
 
-  // Select the most recent run on first load, so opening the app shows something.
+  // Show something on first load rather than an empty pane.
   useEffect(() => {
     if (selectedRunId === null && history.runs.length > 0) {
       setSelectedRunId(history.runs[0]?.run_id ?? null);
     }
   }, [history.runs, selectedRunId]);
 
-  // Refresh the history when a run reaches a terminal state, so the list's badge
-  // stops disagreeing with the detail panel next to it.
+  // Keeps the list's badge from disagreeing with the detail panel beside it.
   useEffect(() => {
     if (isComplete) reloadHistory();
   }, [isComplete, run?.run_id, reloadHistory]);

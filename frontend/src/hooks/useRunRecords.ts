@@ -1,9 +1,6 @@
 /**
- * Loads a run's transformed output, one page at a time.
- *
- * `enabled` exists so the caller can hold off until the run is terminal. The
- * endpoint would happily return an empty list for an in-flight run, but fetching it
- * then would just be a request whose answer is already known.
+ * Loads a run's output, one page at a time. `enabled` holds off until the run is
+ * terminal - fetching earlier is a request whose answer is already known.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -32,7 +29,7 @@ export function useRunRecords(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
-  // Paging is per run: switching runs must not keep the previous run's page.
+  // Paging is per run.
   useEffect(() => {
     setOffsetState(0);
     setRecords([]);

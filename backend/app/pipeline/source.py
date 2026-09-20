@@ -1,8 +1,7 @@
-"""Source data access.
+"""Source data access. Stands in for s3:GetObject.
 
-Stands in for `s3:GetObject`. The worker is given a key, not a payload, exactly as
-it would be in AWS - which is why the API needs no access to the source data at all.
-Swapping this module for boto3 is the entire change.
+The worker is given a key, not a payload - which is why the API needs no access to
+the source data at all.
 """
 
 from __future__ import annotations

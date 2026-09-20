@@ -1,20 +1,14 @@
-"""The transformation itself: pure functions over in-memory data, no I/O.
+"""The transformation: pure functions over in-memory data, no I/O.
 
-The input is not a flat dataset. Each CSV row is one event in a change-data-capture
-changelog: `record` is base64-encoded JSON, ten distinct object_ids each appear five
-times with increasing timestamps, and `action` is either null (upsert) or "DELETE"
-(tombstone). Copying rows across would be wrong.
+The input is a change-data-capture changelog, not a flat dataset - each row is a
+base64-encoded JSON event, and `action` is either null (upsert) or DELETE
+(tombstone). So it is replayed rather than copied:
 
-So the transformation replays the log:
+    decode -> order by (timestamp, id) -> fold to latest state per object_id
+        -> drop final DELETEs -> derive geometry metrics
 
-    decode -> validate -> order by (timestamp, id)
-        -> fold to latest state per object_id (last write wins)
-        -> drop objects whose final action is DELETE
-        -> derive geometry metrics
-
-Two properties follow, and both matter architecturally. It is a pure fold over
-sorted events, so it is deterministic; and it is therefore idempotent, which is what
-makes at-least-once queue delivery safe to build on.
+Being a pure fold over sorted events makes it deterministic and therefore idempotent,
+which is what makes at-least-once queue delivery safe.
 """
 
 from __future__ import annotations
@@ -86,11 +80,7 @@ class TransformResult:
 
 
 def decode_event(row: dict[str, str]) -> ChangeEvent:
-    """Decode one CSV row into a change event.
-
-    Raises TransformError with the offending row id rather than letting a malformed
-    payload surface as a bare KeyError three frames away.
-    """
+    """Decode one CSV row, naming the offending row id if it is malformed."""
     try:
         event_id = int(row["id"])
     except (KeyError, TypeError, ValueError) as exc:
@@ -154,12 +144,11 @@ def parse_wkt(wkt: str) -> list[list[tuple[float, float]]]:
 
 
 def derive_metrics(wkt: str) -> GeometryMetrics:
-    """Derive vertex and segment counts, length and bounding box from a geometry.
+    """Derive counts, length and bounding box from a geometry.
 
-    length_m is a Euclidean sum over the vertices. That is valid only because the
-    coordinates are in a projected CRS measured in metres - the value ranges
-    (~30,000-49,000 easting, ~20,000-39,000 northing) are consistent with SVY21.
-    Geographic coordinates would need a geodesic calculation instead.
+    length_m is a Euclidean sum, valid only because the coordinates are projected and
+    in metres (ranges consistent with SVY21). Geographic coordinates would need a
+    geodesic calculation.
     """
     parts = parse_wkt(wkt)
 
@@ -189,8 +178,8 @@ def transform(rows: list[dict[str, str]]) -> TransformResult:
     """Replay the changelog and return the current state of every surviving object."""
     events = [decode_event(row) for row in rows]
 
-    # Sorting by (timestamp, event_id) makes the fold deterministic even if two
-    # events share a timestamp, and independent of the order rows arrive in.
+    # Deterministic even when two events share a timestamp, and independent of the
+    # order rows arrive in.
     events.sort(key=lambda event: (event.timestamp, event.event_id))
 
     latest: dict[str, ChangeEvent] = {}

@@ -1,9 +1,6 @@
 /**
- * Mirrors the backend's Pydantic schemas (`backend/app/schemas.py`).
- *
- * Hand-written rather than generated, because the surface is small and a generator
- * would be more machinery than it saves. If the API grows, generating these from
- * the OpenAPI document the backend already serves at /openapi.json is the next step.
+ * Mirrors the backend's Pydantic schemas (`backend/app/schemas.py`). Hand-written:
+ * at this size, generating from /openapi.json would be more machinery than it saves.
  */
 
 export const RUN_STATUSES = ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED"] as const;

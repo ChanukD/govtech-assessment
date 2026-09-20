@@ -54,11 +54,9 @@ export function RecordsTable({
       ) : (
         <>
           {/*
-            One table, two presentations. Above the breakpoint it is a table; below it,
-            CSS restacks each row into a card and the data-label attributes become the
-            field names. Keeping a single DOM means the semantics stay correct for
-            assistive technology at every width, and there is no duplicated markup to
-            drift apart.
+            One DOM, two presentations: below the breakpoint CSS restacks each row into
+            a card, using data-label for the field names. Keeps table semantics correct
+            at every width with no duplicated markup.
           */}
           <div className="table-wrap" data-loading={isLoading ? "true" : undefined}>
             <table className="table table--stacking">
