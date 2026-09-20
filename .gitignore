@@ -1,6 +1,7 @@
 # IDE and editor files
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 .DS_Store
@@ -29,6 +30,13 @@ build/
 coverage/
 .next/
 out/
+
+# SQLite
+# The local database is created on first run and is pure build output. The -wal and
+# -shm sidecars exist because the API and worker are two processes sharing the file.
+*.db
+*.db-wal
+*.db-shm
 
 # Terraform
 # .terraform/ caches downloaded provider binaries — the AWS provider alone is ~776 MB.

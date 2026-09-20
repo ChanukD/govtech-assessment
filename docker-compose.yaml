@@ -1,2 +1,91 @@
+# Three services mirroring the AWS architecture:
+#
+#   web     nginx serving the SPA and proxying /api  -> CloudFront + S3
+#   api     FastAPI, accepts triggers, returns 202    -> ECS Fargate behind the ALB
+#   worker  consumes the queue, runs the pipeline     -> ECS Fargate consuming SQS
+#
+# The queue and the database are both the SQLite file on the shared `pipeline-db`
+# volume. That is the one place this differs structurally from the deployed design,
+# where SQS and RDS are separate managed services - see the README.
+#
+#   docker compose up --build      then open http://localhost:8080
 
+services:
+  api:
+    build:
+      context: ./backend
+    image: pipeline-api:local
+    environment:
+      PIPELINE_DATABASE_PATH: /data/pipeline.db
+      PIPELINE_SOURCE_FILE: /srv/data/records.csv
+      # The browser only ever talks to nginx, which proxies same-origin, so no CORS
+      # origin needs allowing. Set deliberately empty rather than left at the default.
+      PIPELINE_CORS_ORIGINS: ""
+    volumes:
+      - pipeline-db:/data
+      - ./data:/srv/data:ro
+    ports:
+      # Exposed so the OpenAPI docs are reachable at localhost:8000/docs. The SPA does
+      # not use this port - it goes through nginx.
+      - "8000:8000"
+    healthcheck:
+      # No curl in the slim image, and adding one purely for a healthcheck would be
+      # weight for nothing.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz').read()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
 
+  worker:
+    build:
+      context: ./backend
+    image: pipeline-api:local
+    command: ["pipeline-worker"]
+    environment:
+      PIPELINE_DATABASE_PATH: /data/pipeline.db
+      PIPELINE_SOURCE_FILE: /srv/data/records.csv
+      PIPELINE_POLL_INTERVAL_SECONDS: "1.0"
+      PIPELINE_VISIBILITY_TIMEOUT_SECONDS: "30"
+      PIPELINE_MAX_ATTEMPTS: "3"
+    volumes:
+      - pipeline-db:/data
+      - ./data:/srv/data:ro
+    depends_on:
+      api:
+        # Not a hard requirement - the worker creates the schema itself if it starts
+        # first - but it keeps two processes from racing to create it on a cold start.
+        condition: service_healthy
+    # Gives an in-flight run time to finish on SIGTERM instead of being abandoned and
+    # waiting out a visibility timeout. Matches stopTimeout on the Fargate task.
+    stop_grace_period: 60s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+    image: pipeline-web:local
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  # Named rather than a bind mount: SQLite in WAL mode needs real POSIX locking, which
+  # a named volume provides and a bind mount from the host does not always, depending
+  # on the host filesystem and platform.
+  pipeline-db:

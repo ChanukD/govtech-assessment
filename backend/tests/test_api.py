@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -147,3 +150,49 @@ class TestQueueSemantics:
             assert fail_run(connection, run_id, "boom", settings.max_attempts) is True
 
         assert client.get(f"/api/v1/runs/{run_id}").json()["status"] == "FAILED"
+
+
+class TestConnectionThreading:
+    """Regression: SQLite refuses cross-thread use by default.
+
+    FastAPI runs sync generator dependencies in a worker thread pool and may run the
+    generator's setup and teardown on different threads. With the default
+    check_same_thread=True, closing the connection raised ProgrammingError as soon as
+    two requests overlapped - which sequential curl calls never triggered, but a
+    browser loading the page did.
+    """
+
+    def test_connection_survives_moving_between_threads(self, settings):
+        from app.db import connect
+
+        connection = connect(settings.database_path)
+        failures: list[Exception] = []
+
+        def use_and_close() -> None:
+            try:
+                connection.execute("SELECT 1").fetchone()
+                connection.close()
+            except Exception as exc:  # noqa: BLE001 - recorded and asserted below
+                failures.append(exc)
+
+        thread = threading.Thread(target=use_and_close)
+        thread.start()
+        thread.join()
+
+        assert failures == [], f"connection could not be used from another thread: {failures}"
+
+    def test_concurrent_requests_all_succeed(self, client, settings):
+        """The actual failure mode: parallel requests, as the SPA makes on load."""
+        run_id = client.post("/api/v1/runs", json={}).json()["run_id"]
+        drain(settings)
+
+        paths = [
+            "/api/v1/runs",
+            f"/api/v1/runs/{run_id}",
+            f"/api/v1/runs/{run_id}/records",
+        ] * 6
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            codes = list(pool.map(lambda path: client.get(path).status_code, paths))
+
+        assert all(code == 200 for code in codes), f"got {sorted(set(codes))}"
