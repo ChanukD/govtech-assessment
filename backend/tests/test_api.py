@@ -31,18 +31,15 @@ def settings(tmp_path) -> Settings:
 
 @pytest.fixture
 def client(settings) -> TestClient:
-    # Settings are passed in, so startup creates the schema in the temporary
-    # database. No dependency override is needed and nothing touches the real one.
+    # Settings passed in, so startup creates the schema in the temporary database.
     with TestClient(create_app(settings)) as test_client:
         yield test_client
 
 
 class TestAppConfiguration:
     def test_startup_uses_injected_settings_not_the_process_default(self, settings):
-        """Regression: lifespan once called get_settings() directly.
-
-        That bypassed the settings this app was built with, so every test run
-        created and migrated the real database configured in the environment.
+        """Regression: lifespan once called get_settings(), bypassing these settings
+        and creating the real configured database on every test run.
         """
         default_database = get_settings().database_path
         existed_before = default_database.exists()
@@ -155,11 +152,8 @@ class TestQueueSemantics:
 class TestConnectionThreading:
     """Regression: SQLite refuses cross-thread use by default.
 
-    FastAPI runs sync generator dependencies in a worker thread pool and may run the
-    generator's setup and teardown on different threads. With the default
-    check_same_thread=True, closing the connection raised ProgrammingError as soon as
-    two requests overlapped - which sequential curl calls never triggered, but a
-    browser loading the page did.
+    FastAPI may run a sync dependency's setup and teardown on different threadpool
+    threads, which broke as soon as two requests overlapped.
     """
 
     def test_connection_survives_moving_between_threads(self, settings):

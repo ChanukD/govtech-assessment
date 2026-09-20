@@ -1,11 +1,8 @@
 """Worker entrypoint.
 
-A separate process, not a background thread in the API. That is the point of the
-design: the API can be restarted, scaled or killed mid-run without affecting work in
-flight, and the worker can be scaled independently of request traffic.
-
-The loop mirrors what the Fargate worker does against SQS: claim, process, complete
-or fail, repeat.
+A separate process, not a background thread: the API can restart mid-run without
+affecting work in flight, and the two scale independently. The loop mirrors the
+Fargate worker against SQS - claim, process, complete or fail, repeat.
 """
 
 from __future__ import annotations
@@ -27,11 +24,7 @@ _shutdown = False
 
 
 def _request_shutdown(signum: int, _frame: FrameType | None) -> None:
-    """Finish the current run, then stop.
-
-    The equivalent of Fargate's stopTimeout: an in-flight message is completed rather
-    than abandoned, so it does not have to wait out a visibility timeout.
-    """
+    """Finish the current run, then stop, rather than abandoning it mid-flight."""
     global _shutdown
     _shutdown = True
     logger.info("signal %s received, finishing current run then stopping", signum)
@@ -63,7 +56,7 @@ def main() -> int:
             run = claim_next_run(connection, settings.visibility_timeout_seconds)
 
             if run is None:
-                # Local stand-in for SQS long polling.
+                # Stands in for SQS long polling.
                 time.sleep(settings.poll_interval_seconds)
                 continue
 

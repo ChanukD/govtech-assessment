@@ -27,10 +27,7 @@ export function TriggerPanel({
         {isTriggering ? "Starting…" : "Trigger pipeline"}
       </button>
 
-      {/*
-        Triggering while one is in flight is allowed - the backend queues it and the
-        worker takes them in order. Worth saying so, or the second click looks broken.
-      */}
+      {/* Allowed: the backend queues it. Said explicitly, or the click looks broken. */}
       {isRunInFlight && !isTriggering && (
         <p className="hint">A run is in progress. Triggering again queues another.</p>
       )}

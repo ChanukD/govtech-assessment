@@ -1,10 +1,7 @@
 /*
- * One stylesheet, no framework. The surface is small enough that a utility library
- * would be more bytes and more indirection than it saves.
- *
- * Layout is fluid rather than fixed: spacing and type scale with the viewport via
- * clamp(), and three breakpoints handle the structural changes - sidebar narrows,
- * then stacks, then the output table restacks into cards.
+ * One stylesheet, no framework - at this size a utility library costs more than it
+ * saves. Spacing and type scale with clamp(); three breakpoints handle the structural
+ * changes: sidebar stacks, then the output table restacks into cards.
  */
 
 :root {
@@ -616,11 +613,7 @@ code {
   color: var(--text-muted);
 }
 
-/*
- * Below this width the table restacks into one card per row. The header is hidden and
- * each cell shows its own label from data-label, so the same markup stays readable
- * without a horizontal scrollbar.
- */
+/* Below this width each row restacks into a card, labelled from data-label. */
 @media (max-width: 680px) {
   .table--stacking thead {
     display: none;

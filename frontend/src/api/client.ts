@@ -1,9 +1,8 @@
 /**
- * The only module that knows how to talk to the backend.
+ * The only module that talks to the backend.
  *
- * Requests use relative paths. In development Vite proxies /api to the backend; in
- * production CloudFront forwards it to the ALB. Same-origin in both, so there is no
- * base URL to configure per environment and no CORS to negotiate.
+ * Relative paths throughout: Vite proxies /api in development, CloudFront forwards it
+ * in production. Same-origin in both, so there is no base URL to configure and no CORS.
  */
 
 import type {
@@ -55,9 +54,8 @@ async function extractDetail(response: Response): Promise<string | undefined> {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { signal, body, method = "GET" } = options;
 
-  // Built up rather than declared inline: under exactOptionalPropertyTypes, an
-  // explicit `undefined` is not the same as an absent property, and RequestInit
-  // accepts the latter only.
+  // Built up, not inline: under exactOptionalPropertyTypes an explicit `undefined`
+  // is not the same as an absent property.
   const init: RequestInit = { method };
   if (signal !== undefined) init.signal = signal;
   if (body !== undefined) {
@@ -69,8 +67,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   try {
     response = await fetch(path, init);
   } catch (cause) {
-    // An aborted request is a caller decision, not a failure - let it propagate so
-    // callers can ignore it rather than rendering an error for their own cleanup.
+    // An abort is a caller decision, not a failure - let it propagate.
     if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
     throw new ApiError("Cannot reach the API. Is the backend running?", 0);
   }
@@ -87,12 +84,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return (await response.json()) as T;
 }
 
-/**
- * Queue a pipeline run.
- *
- * Returns as soon as the run is accepted - the response is a QUEUED run, never a
- * finished one. The caller polls for the rest.
- */
+/** Queue a run. Returns a QUEUED run immediately; the caller polls for the rest. */
 export function triggerRun(
   body: TriggerRunRequest = {},
   signal?: AbortSignal,

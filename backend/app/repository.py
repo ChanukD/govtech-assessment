@@ -22,11 +22,7 @@ def create_run(
     source_key: str,
     idempotency_key: str | None = None,
 ) -> sqlite3.Row:
-    """Insert a QUEUED run. This insert *is* the enqueue.
-
-    Nothing else happens on the request path: no source read, no transformation. The
-    API returns as soon as this row is committed.
-    """
+    """Insert a QUEUED run. This insert *is* the enqueue - no work happens here."""
     if idempotency_key:
         existing = find_run_by_idempotency_key(connection, idempotency_key)
         if existing is not None:
@@ -46,7 +42,7 @@ def create_run(
         )
 
     run = get_run(connection, run_id)
-    assert run is not None  # just inserted inside a committed transaction
+    assert run is not None
     return run
 
 
@@ -80,9 +76,7 @@ def replace_records(
 ) -> None:
     """Write a run's output.
 
-    Upsert rather than insert, so a redelivered message rewrites the same rows
-    instead of failing or duplicating. Combined with the deterministic fold, running
-    the same run twice is indistinguishable from running it once.
+    Upsert, so a redelivered message rewrites the same rows rather than duplicating.
     """
     with write_transaction(connection):
         connection.executemany(
