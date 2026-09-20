@@ -1,6 +1,4 @@
-# ---------------------------------------------------------------------------------
 # Identity and tagging
-# ---------------------------------------------------------------------------------
 
 variable "project" {
   type        = string
@@ -38,9 +36,7 @@ variable "aws_region" {
   }
 }
 
-# ---------------------------------------------------------------------------------
 # Network
-# ---------------------------------------------------------------------------------
 
 variable "vpc_cidr" {
   type        = string
@@ -69,9 +65,7 @@ variable "az_count" {
   }
 }
 
-# ---------------------------------------------------------------------------------
 # Container images
-# ---------------------------------------------------------------------------------
 
 variable "api_image_tag" {
   type        = string
@@ -94,9 +88,7 @@ variable "ecr_max_image_count" {
   }
 }
 
-# ---------------------------------------------------------------------------------
 # ECS services
-# ---------------------------------------------------------------------------------
 
 variable "api_container_port" {
   type        = number
@@ -106,6 +98,17 @@ variable "api_container_port" {
   validation {
     condition     = var.api_container_port > 0 && var.api_container_port <= 65535
     error_message = "api_container_port must be a valid TCP port."
+  }
+}
+
+variable "alb_listener_port" {
+  type        = number
+  description = "Port the load balancer listens on. HTTP, because TLS terminates at CloudFront and this environment provisions no ACM certificate."
+  default     = 80
+
+  validation {
+    condition     = var.alb_listener_port > 0 && var.alb_listener_port <= 65535
+    error_message = "alb_listener_port must be a valid TCP port."
   }
 }
 
@@ -165,9 +168,7 @@ variable "worker_desired_count" {
   }
 }
 
-# ---------------------------------------------------------------------------------
 # Queue
-# ---------------------------------------------------------------------------------
 
 variable "queue_visibility_timeout_seconds" {
   type        = number
@@ -191,9 +192,7 @@ variable "queue_max_receive_count" {
   }
 }
 
-# ---------------------------------------------------------------------------------
 # Database
-# ---------------------------------------------------------------------------------
 
 variable "db_instance_class" {
   type        = string
@@ -251,9 +250,7 @@ variable "db_deletion_protection" {
   default     = false
 }
 
-# ---------------------------------------------------------------------------------
 # Edge
-# ---------------------------------------------------------------------------------
 
 variable "cloudfront_price_class" {
   type        = string
@@ -277,9 +274,7 @@ variable "waf_trigger_rate_limit" {
   }
 }
 
-# ---------------------------------------------------------------------------------
 # Observability
-# ---------------------------------------------------------------------------------
 
 variable "log_retention_days" {
   type        = number

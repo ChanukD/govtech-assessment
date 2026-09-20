@@ -1,0 +1,51 @@
+# Accepted trivy findings.
+#
+# Every entry here is a deliberate decision, not an unreviewed warning. Anything not
+# listed is expected to pass. The reasoning is repeated in the relevant module README
+# and in infra/README.md under "Simplifications".
+
+# Load balancer is exposed publicly.
+# It is the ingress tier and must be reachable, but its security group admits only
+# CloudFront's origin-facing prefix list, not 0.0.0.0/0. The residual bypass risk is
+# documented as a TODO in modules/s3_site/main.tf.
+AWS-0053
+
+# Listener does not use HTTPS.
+# TLS terminates at CloudFront. This environment provisions no ACM certificate and no
+# custom domain, so the ALB has no certificate to serve. Production adds an ACM
+# certificate, an HTTPS listener and a redirect from 80.
+AWS-0054
+
+# Resources do not use a customer-managed KMS key.
+# ECR repositories, CloudWatch log groups, the SNS topic, Performance Insights, the
+# database secret and both S3 buckets all use AWS-managed keys. A CMK per service adds
+# key administration and cost for data at this sensitivity; the decision would change
+# for regulated or personal data.
+AWS-0033
+AWS-0017
+AWS-0136
+AWS-0078
+AWS-0098
+AWS-0132
+
+# VPC does not have flow logs enabled.
+# Not part of the architecture being represented, and it would need a log destination
+# and delivery role to be useful. A production network module would enable it.
+AWS-0178
+
+# Instance does not have IAM authentication enabled.
+# Credentials are held in Secrets Manager and injected by the ECS agent at task start.
+# IAM database authentication is the stronger option and is a reasonable improvement,
+# but it caps connections per second and would change how the application connects.
+AWS-0176
+
+# Instance does not have deletion protection enabled.
+# Off in dev on purpose so the environment stays disposable. The variable defaults to
+# true; terraform.tfvars overrides it for this environment only.
+AWS-0177
+
+# Access logging is disabled on the distribution and both buckets.
+# Each needs a log destination bucket with a delivery policy and its own lifecycle
+# rules. Out of scope for a single development environment.
+AWS-0010
+AWS-0089

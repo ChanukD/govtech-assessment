@@ -35,6 +35,12 @@ variable "scan_on_push" {
   default     = true
 }
 
+variable "force_delete" {
+  type        = bool
+  description = "Whether `terraform destroy` may delete a repository that still contains images. True only for disposable environments."
+  default     = false
+}
+
 variable "encryption_type" {
   type        = string
   description = "Encryption for images at rest. AES256 uses the ECR-managed key; KMS adds cost and key management for no benefit here."

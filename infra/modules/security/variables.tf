@@ -23,10 +23,26 @@ variable "api_container_port" {
   }
 }
 
+variable "alb_listener_port" {
+  type        = number
+  description = "Port the load balancer listens on. Must match the alb module's listener_port."
+  default     = 80
+
+  validation {
+    condition     = var.alb_listener_port > 0 && var.alb_listener_port <= 65535
+    error_message = "alb_listener_port must be a valid TCP port."
+  }
+}
+
 variable "db_port" {
   type        = number
   description = "Port the database listens on."
   default     = 5432
+}
+
+variable "s3_gateway_prefix_list_id" {
+  type        = string
+  description = "Prefix list of the S3 gateway endpoint, from the network module. The worker's S3 egress rule targets this rather than a CIDR."
 }
 
 variable "alb_source_prefix_list_name" {
@@ -35,10 +51,8 @@ variable "alb_source_prefix_list_name" {
   default     = "com.amazonaws.global.cloudfront.origin-facing"
 }
 
-# ---------------------------------------------------------------------------------
 # Resources the task roles are scoped to. Passed in as ARNs so that every IAM policy
 # in the stack names specific resources rather than wildcards.
-# ---------------------------------------------------------------------------------
 
 variable "source_bucket_arn" {
   type        = string
