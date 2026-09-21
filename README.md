@@ -235,7 +235,7 @@ manual path is better for development.
 Requires Docker Desktop or an equivalent daemon.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/ChanukD/govtech-assessment.git
 cd govtech-assessment
 docker compose up --build
 ```
